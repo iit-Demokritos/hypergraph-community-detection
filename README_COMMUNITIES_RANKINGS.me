@@ -1,0 +1,90 @@
+###############################
+## COMMUNITY DETECTION HOWTO ##
+###############################
+
+###########CLIQUES and SPECTRAL CLUSTERING
+
+command:
+$ python MainCommunities.py <tripletsFile> <saveFolder>
+
+	runs both CLIQUES and SPECTRAL CLUSTERING methods
+	with default values:
+					cliques 			- louvain method
+					spectral clustering - custom
+					k					- 100
+
+$ python MainCommunities.py <method> <tripletsFile> <saveFolder>
+	
+	runs specified method
+
+Parameters:
+	<method> 		- all, cliques, spectral
+	<tripletsFile>	- path to .json file
+	<saveFolder>	- path to results folder
+
+Files produced:
+	communities_nx.json - communities by cliques method
+	matchings_nx.json	- vertex - community matchings by cliques method
+	metadata_nx.json	- metadata of cliques method
+
+	communities_k-100_custom.json - communities by spectral method
+	matchings_k-100_custom.json	  - vertex - community matchings by spectral method
+	metadata_k-100_custom.json	  - metadata by spectral method
+
+**parameters are optional, can hardcode parameters in MainCommunities.py file**
+
+
+###########TRIPAL
+
+command:
+$python MainTripal.py <similaritiesFile> <saveFolder>
+
+	runs louvain method on tripal results
+
+Parameters:
+	<similaritiesFile> - .data file containing similarities from tripal method
+	<saveFolder>	- path to results folder
+
+Files produced:
+	communities_tripal_nx.json - communities by louvain on tripal data
+	matchings_tripal_nx.json   - vertex - community matchings for louvain on tripal data
+	metadata_tripal_nx.json	   - metadata of louvain on tripal data
+
+**parameters are optional, can hardcode parameters in MainTripal.py file**
+
+###############################
+## 		RANKING HOWTO 		 ##
+###############################
+
+command:
+$ python MainRankings.py <tripletsFile> <matchingsFile/communityFile> [<rankingsFile>] <saveFolder>
+
+	computes rankings of vertices in hypergraph, as well as recall and which highly ranked vertices belong to the same community as query vertices
+
+Parameters:
+	<tripletsFile>		- path to .json file
+	<communitiesFile> 	- vertex - community matchings (as produced by above methods) or community array
+	<rankingsFile>		- rankings file as produced by ranking algorithm (optional [use if only scoring is needed])
+	<saveFolder>		- path to results folder
+
+	OR
+
+	<pathFile>			- file with paths in format:
+							% text whatever
+							<tripletsFile>
+							<communitiesFile>
+							<rankingsFile> - can be an empty line, if not empty, compute only scores
+							<saveFolder>
+	
+Extra parameters(must change manually/hardcode):
+	top				- top X similar vertices to consider
+	node_tags		- list of vertex labels in hyperedge (default:['user','tag','resource'])
+	weights			- modality of hyperedges in order to compute rankings (default:'occurrences', options: None [all weights==1])
+	query vertices	- type of vertices to compute metrics (default:'tag', select from 'all', '<type>' [<type> in node_tags])
+	ranking_type	- type of nodes to consider for ranking, (default:'tag', select from 'all', '<type>' [<type> in node_tags]
+	tradeoff 		- tradeoff of ranking algorithm
+
+Files produced:
+	rankings.json		- array of (score, id, type) elements for each query vertex
+	scores.json			- recall, precision, f1 scores for each query vertex
+	in_communities.json - array of (score, id, type) elements of vertices in top results belonging to the same community as the query vertex, for each vertex

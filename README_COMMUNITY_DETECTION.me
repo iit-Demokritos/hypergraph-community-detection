@@ -1,0 +1,231 @@
+######################################################################
+#																	 #
+#					 COMMUNITY DETECTION TOOLKIT					 #
+#								README								 #
+#																	 #
+######################################################################
+
+
+A step by step guide to run the implemented community detection algorithms.
+
+
+
+
+
+
+
+
+--STEP 1: READING HYPEREDGES FILES
+
+
+
+-Case 1.1: Hyperedges
+
+In the Utils.FormatHandlers various methods for reading hyperedges from files have been implemented.
+
+>>
+>> from Utils.FormatHandlers import parse_hyperedges_from_file
+>>
+>>
+>> hyperedges=parse_hyperedges_from_file(<filename_containing_hyperedges>)
+>>
+
+INPUT: file containing hyperedges. Accepts files with extensions: *.json
+																	  *.raw or no extension
+																	  *.data	-	hyperedges as results of Gosh's edge clustering method
+
+OUTPUT: list of lists containing hyperedges
+		ex. [[43, 23, 54],
+			 [43, 432, 44],
+			 	  ...
+			]
+
+		where the hypergraph is a k-uniform hypergraph (here: k=3) and node ids are integers
+
+
+
+
+
+-Case 1.2: Gosh's hyperedges as nodes (xxUxxTxxL)
+
+>> from Utils.FormatHandlers import parse_tripal_as_nodes
+>>
+>> edges=parse_tripal_as_nodes( filename, weights=False)
+>>
+
+INPUT: file as outputed from Gosh's tripal  method
+	   weights: flag denoting if similarities should be used as edge weights
+
+OUTPUT: list of tuples containing edges
+		ex. [( 43U34T54L, 12U43T13L), ... ]
+
+
+
+
+
+
+
+
+
+
+
+
+
+--STEP 2: COMMUNITY DETECTION
+
+
+
+-Case 2.1: Mapping to Cliques
+
+>>
+>> from Hypergraph.CliqueGraph_nx import CliqueGraph_nx
+>>
+>> g=CliqueGraph_nx(edge_list, node_tags)
+>>
+
+INPUT: edge_list: list of lists containing hyperedges, as outputed from Case 1.1
+	   node_tags: list of strings, the names of the partites in the order shown in the edge_list
+	   			  ex.['P1', 'P2', 'P3', ...]
+
+OUTPUT: CliqueGraph instance
+
+>>
+>> com, comms_d, node_tags, q = g.modularity_maximization()
+>>
+
+Louvains modularity maximization on clique graph
+
+OUTPUT: com: list
+            community array, entries are sorted by node index and grouped by node types/partites
+        comms_d: dictionary
+            dictionary containing {partiteName: { id: communityId , ...} , ... }
+        node_tags: list of str
+            order of partites, as found in hyperedges
+        q: float
+            modularity
+
+
+
+-Case 2.2: Spectral Clustering
+
+>> from Hypergraph.Hypergraph_matrix_repr import Hypergraph_matrix_repr
+>>
+>> hg=Hypergraph_matrix_repr(edge_list, node_tags=['P1', 'P2', 'P3'])
+>>
+
+INPUT: edge_list: list of lists containing hyperedges, as outputed from Case 1.1
+	   node_tags: list of strings, the names of the partites in the order shown in the edge_list
+	   			  ex.['P1', 'P2', 'P3', ...] optional, recommended
+
+>>
+>> centroids, label, label_dict, node_tags, inertia = hg.spectral_clustering(cluster_number, eigenvector_number)
+>>
+
+Performs spectral clustring to hypergraph.
+
+INPUT: cluster_number: the number of clusters to create
+	   eigenvector_number: the number of min eigenvectors to use at the embedding stage
+
+OUTPUT: centroid: ndarray of shape (k, n_features)
+        label: community array, ndarray of shape (n_samples,)
+        label_dict: dictionary
+            dictionary containing {partiteName: { id: communityId , ...} , ... }
+        node_tags: list of str
+            order of partites, as found in hyperedges
+        inertia: float
+
+
+
+-Case 2.3: Tripal edge clustering
+
+>>
+>> from Hypergraph.Tripal_nx import Tripal_nx
+>>
+>> g=Tripal_nx(tripal_file, node_tags=['P1', 'P2', 'P3'])
+>>
+
+INPUT: tripal_file: edge file as outputed from Case 1.2
+	   node_tags: list of strings, the names of the partites in the order shown in the edge_list
+	   			  ex.['P1', 'P2', 'P3', ...] optional, recommended
+
+OUTPUT: graph with tripal edges as nodes
+
+>>
+>> comm_list, matchings, node_tags, q = g.modularity_maximization()
+>>
+
+Performs modularity maximization at tripal data, where nodes are actually hyperedges
+
+OUTPUT: comm_list: list
+            community list where indexes correspond to 
+            0:users_num , in sorted order by user id
+            users_num+1: tags_num, in sorted order by tag id
+            tags_num+1: links_num, in sorted order by link id
+        matching: list of dictionaries
+            *_id: community label dict for each type, Users, Tags, Links
+        node_tags: list of str
+            order of partites, as found in hyperedges
+        q: float
+            modularity
+
+
+
+
+--STEP 3: PARSING RESULTS FROM FILES
+
+
+
+
+-Case 3.1: Parsing Community Array
+
+>>
+>> from Utils.FormatHandlers import parse_community_array_from_file
+>>
+>> comm_array=parse_community_array_from_file(filename)
+>>
+
+INPUT: filename: community array filename, either a .json file, where the key of the first element is ignored and the value of the first element is regarded as the community array
+											or a raw file containing a string of the form [1,2,3, ...]
+
+
+
+
+-Case 3.2: Parsing community dictionary
+
+Community dictionaries {'partite_id': {'node_id': community_label, ...}, ...} are stored in json format
+
+>>
+>> from Utils.JsonHandler import json_reader
+>>
+>> comm_dict=json_reader(file, int_keys=True)
+>> 
+
+
+
+
+
+
+
+
+--STEP 4: EVALUATION
+
+Evaluation measures included are NMI, conductance and network community profile
+All evaluation measures are located in the Utils.Evaluation package.
+Methods receive as input the community array or the community matchings dictionary along with the partite id order in the node_tags parameter. Some methods require the hyperedge list as well.
+
+>>
+>> from Utils.Evaluation import NMI_sklearn, NMI, conductance, network_community_profile
+>>
+>>
+>> NMI=NMI_sklearn(comm_array, comm_ground_truth, node_tags)  # comm_array and comm_ground_truth are either community arrays or community matching dictionary {'partite_id': {'node_id': community_label, ...}, ...}. Providing the node_tags partite ids in the correct order is recommended.
+>>
+>>
+>> NMI=NMI(hyperedge_list, comm_array, comm_ground_truth, node_tags=['P1', 'P2', 'P3'])	# custom implementation of NMI measure. hyperedge list is the list of lists, as provided to the methods in STEP 1. comm_array and comm_ground_truth can be either community arrays or community dictionaries {'partite_id': {'node_id': community_label, ...}, ...}.
+>>
+>>
+>> conductance_per_community=conductance(comm_array, hyperedge_list, node_tags=['P1', 'P2', 'P3']) # returns the conductance score of each community in dictionary format. comm_array can be either community array or community matching dictionary {'partite_id': {'node_id': community_label, ...}, ...}. Providing the node_tags partite ids in the correct order is recommended.
+>>
+>>
+>> ncp=network_community_profile(comm_array, hyperedge_list, node_tags=['P1', 'P2', 'P3']) # returns the network_community_profile (min conductance per community size) in sorted dictionary format. comm_array can either be a single result or a list of various community detection executions containing either community arrays or or community dictionaries {'partite_id': {'node_id': community_label, ...}, ...}.  Providing the node_tags partite ids in the correct order is recommended.
+>>
+>>
